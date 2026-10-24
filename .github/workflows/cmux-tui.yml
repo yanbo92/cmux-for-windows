@@ -92,6 +92,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - name: Test SSH stdio mux bridge
+        run: cargo test --manifest-path cmux-tui/Cargo.toml -p cmux-tui --test remote_link --target x86_64-pc-windows-gnu --locked
+
       - name: Test terminal key encoding
         run: cargo test --manifest-path cmux-tui/Cargo.toml -p ghostty-vt --lib --target x86_64-pc-windows-gnu --locked key::tests::chord_parser_encodes_common_keys
 
