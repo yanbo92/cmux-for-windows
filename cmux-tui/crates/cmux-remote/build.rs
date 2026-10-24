@@ -7,8 +7,6 @@ use std::process::{Command, Stdio};
 const BUILD_COMMIT_ENV: &str = "CMUX_TUI_BUILD_COMMIT";
 const BUILD_IDENTITY_ENV: &str = "CMUX_TUI_BUILD_IDENTITY";
 const DIRTY_SEPARATOR: &[u8] = b"\0cmux-tui-untracked\0";
-
-
 fn main() {
     println!("cargo:rerun-if-env-changed={BUILD_COMMIT_ENV}");
 

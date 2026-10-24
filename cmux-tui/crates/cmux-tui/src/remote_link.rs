@@ -12,7 +12,6 @@ use cmux_remote::crypto::InboundAuthEvidence;
 use cmux_remote::daemon::{DaemonSessionPolicy, InboundLink, RemoteDaemon};
 use cmux_remote::identity::AuthDatabase;
 use cmux_remote::provider::LengthDelimitedLink;
-use cmux_remote::service::ServiceError;
 use cmux_remote::services::DaemonServices;
 use cmux_remote::session::SessionLimits;
 use cmux_remote::workspace::WorkspaceService;
@@ -34,10 +33,7 @@ fn run_inner(args: &[String]) -> anyhow::Result<()> {
         return Err(anyhow!("remote-link currently requires --stdio"));
     }
     let session = option_value(args, "--session").unwrap_or_else(|| "main".into());
-    if !session
-        .bytes()
-        .all(|byte| byte.is_ascii_alphanumeric() || b"_.-".contains(&byte))
-    {
+    if !session.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"_.-".contains(&byte)) {
         return Err(anyhow!("remote session name is not shell-safe"));
     }
     let state_dir = option_value(args, "--state-dir")
@@ -80,18 +76,13 @@ async fn serve(session: String, state_dir: PathBuf) -> anyhow::Result<()> {
         .recv()
         .await
         .ok_or_else(|| anyhow!("remote daemon closed before accepting the SSH client"))?;
-    let result = services
-        .serve_client(client)
-        .await
-        .map_err(|error: ServiceError| anyhow!(error));
+    let result = services.serve_client(client).await.map_err(|error| anyhow!(error));
     let auth_result = auth.shutdown().await.map_err(|error| anyhow!(error));
     result.and(auth_result)
 }
 
 fn option_value(args: &[String], option: &str) -> Option<String> {
-    args.windows(2)
-        .find(|pair| pair[0] == option)
-        .map(|pair| pair[1].clone())
+    args.windows(2).find(|pair| pair[0] == option).map(|pair| pair[1].clone())
 }
 
 fn default_state_dir() -> Option<PathBuf> {
