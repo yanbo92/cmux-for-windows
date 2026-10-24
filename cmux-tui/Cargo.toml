@@ -6,6 +6,8 @@ members = [
     "crates/cmux-tui-cdp",
     "crates/cmux-tui-core",
     "crates/cmux-pty",
+    "crates/cmux-remote",
+    "crates/cmux-remote-protocol",
     "crates/cmux-tui-machine-protocol",
     "crates/cmux-tui",
     "crates/cmux-ffi",
@@ -16,6 +18,8 @@ default-members = [
     "crates/cmux-tui-cdp",
     "crates/cmux-tui-core",
     "crates/cmux-pty",
+    "crates/cmux-remote",
+    "crates/cmux-remote-protocol",
     "crates/cmux-tui-machine-protocol",
     "crates/cmux-tui",
     "crates/cmux-ffi",
@@ -44,8 +48,13 @@ ghostty-vt = { path = "crates/ghostty-vt" }
 cmux-tui-core = { path = "crates/cmux-tui-core" }
 cmux-tui-cdp = { path = "crates/cmux-tui-cdp" }
 cmux-pty = { path = "crates/cmux-pty" }
+cmux-remote = { path = "crates/cmux-remote", default-features = false }
+cmux-remote-protocol = { path = "crates/cmux-remote-protocol" }
 cmux-tui-machine-protocol = { path = "crates/cmux-tui-machine-protocol" }
 anyhow = "1"
+async-trait = "0.1"
+axum = { version = "0.8", features = ["ws"] }
+bytes = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
@@ -55,6 +64,8 @@ ratatui = "0.30"
 unicode-width = "0.2"
 unicode-segmentation = "1"
 base64 = "0.22"
+diffy = "0.4"
+futures-util = "0.3"
 png = "0.17"
 libc = "0.2"
 tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
@@ -63,6 +74,11 @@ regex = "1"
 bindgen = "0.72"
 smallvec = "1"
 getrandom = "0.3"
+hmac = "0.12"
+http = "1"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["service", "tokio"] }
+iroh = { version = "1.0.3", default-features = false, features = ["fast-apple-datapath", "portmapper", "tls-ring"] }
 fs4 = "1.1.0"
 terminput = "=0.5.11"
 terminput-crossterm = { version = "=0.4.7", default-features = false, features = ["crossterm_0_29"] }
@@ -72,8 +88,15 @@ parking_lot = "0.12"
 # declaring that MSRV. Keep the workspace's advertised Rust 1.91 support.
 rusqlite = { version = "=0.39.0", default-features = false, features = ["bundled"] }
 sha2 = "0.10"
+socket2 = { version = "0.5", features = ["all"] }
+snow = "0.10"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-tungstenite = { version = "0.29", default-features = false, features = ["connect", "handshake", "rustls-tls-native-roots"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["timeout"] }
 url = "2"
 uuid = { version = "1", features = ["serde", "v4"] }
+x25519-dalek = { version = "2", features = ["static_secrets"] }
 zeroize = { version = "1", features = ["derive"] }
 
 [patch.crates-io]
