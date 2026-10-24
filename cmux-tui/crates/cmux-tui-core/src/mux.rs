@@ -17888,6 +17888,7 @@ mod tests {
         );
         let terminal_id = created["result"]["value"]["terminal_id"]
             .as_str()
+            .map(str::to_string)
             .or_else(|| {
                 let snapshot = public_request(
                     &first,
@@ -17896,10 +17897,9 @@ mod tests {
                     serde_json::json!({"machine":"current","session":"current"}),
                     None,
                 );
-                snapshot["result"]["terminals"][0]["id"].as_str()
+                snapshot["result"]["terminals"][0]["id"].as_str().map(str::to_string)
             })
-            .expect("workspace creation exposes its terminal")
-            .to_string();
+            .expect("workspace creation exposes its terminal");
         drop(first);
 
         let reopened = Mux::from_workspace_registry(
