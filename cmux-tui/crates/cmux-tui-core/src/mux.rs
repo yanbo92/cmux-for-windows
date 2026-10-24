@@ -9428,11 +9428,24 @@ impl Mux {
             return self.surface(surface_id).filter(|surface| surface.kind() == SurfaceKind::Pty);
         }
         let slot = self.with_state(|state| {
-            state
+            let slot = state
                 .resource_indexes
                 .content_placements
                 .get(&ContentPublicId::Terminal(terminal_id.clone()))
-                .and_then(|placements| placements.first().copied())
+                .and_then(|placements| placements.first().copied());
+            if slot.is_none() {
+                let keys = state
+                    .resource_indexes
+                    .content_placements
+                    .keys()
+                    .map(|key| key.to_string())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                eprintln!(
+                    "cmux-tui: revival lookup missed {terminal_id}; placement keys: {keys}"
+                );
+            }
+            slot
         })?;
         self.revive_persisted_terminal(slot)
     }
