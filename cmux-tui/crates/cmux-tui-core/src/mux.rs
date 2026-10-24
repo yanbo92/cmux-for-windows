@@ -17860,6 +17860,81 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
+    #[cfg(windows)]
+    #[test]
+    fn remote_style_mutations_keep_revivable_placements_after_owner_restart() {
+        let root = std::env::temp_dir()
+            .join(format!("cmux-remote-revive-{}", WorkspacePublicId::random().unwrap()));
+        let session = "cmux-remote-revive";
+        let first = Mux::from_workspace_registry(
+            session.into(),
+            SurfaceOptions::default(),
+            WorkspaceRegistry::open(&root, session).unwrap(),
+            ProviderWorkspaceState::default(),
+            true,
+        )
+        .unwrap();
+        let created = public_request(
+            &first,
+            "create-remote-workspace",
+            "workspace.create",
+            serde_json::json!({
+                "machine":"current",
+                "session":"current",
+                "name":"remote parity",
+                "initial_content":"terminal",
+            }),
+            Some("remote-revive-create"),
+        );
+        let terminal_id = created["result"]["value"]["terminal_id"]
+            .as_str()
+            .or_else(|| {
+                let snapshot = public_request(
+                    &first,
+                    "snapshot-after-create",
+                    "session.snapshot",
+                    serde_json::json!({"machine":"current","session":"current"}),
+                    None,
+                );
+                snapshot["result"]["terminals"][0]["id"].as_str()
+            })
+            .expect("workspace creation exposes its terminal")
+            .to_string();
+        drop(first);
+
+        let reopened = Mux::from_workspace_registry(
+            session.into(),
+            SurfaceOptions::default(),
+            WorkspaceRegistry::open(&root, session).unwrap(),
+            ProviderWorkspaceState::default(),
+            true,
+        )
+        .unwrap();
+        reopened.with_state(|state| assert!(state.surfaces.is_empty()));
+        let read = serde_json::from_slice::<serde_json::Value>(
+            &reopened
+                .local_resource_response_json(
+                    &serde_json::to_string(&serde_json::json!({
+                        "protocol":"cmux.protocol/2",
+                        "type":"request",
+                        "id":"remote-revive-read",
+                        "operation":"terminal.screen.read",
+                        "params":{"machine":"current","session":"current","terminal":terminal_id},
+                    }))
+                    .unwrap(),
+                )
+                .unwrap(),
+        )
+        .unwrap();
+        assert!(
+            read.get("result").is_some(),
+            "remote-style mutation did not stay revivable after restart: {read}"
+        );
+        reopened.shutdown();
+        drop(reopened);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn restart_finishes_a_close_committed_before_live_state_detach() {
         let root = std::env::temp_dir()
