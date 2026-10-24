@@ -21,7 +21,7 @@ jobs:
     env:
       # Match the upstream cmux-tui bundled in the Mac client used for the
       # VDI loop, so its SSH bootstrap accepts this Windows remote daemon.
-      CMUX_TUI_BUILD_IDENTITY: a9b104f3cb7d3808cf7eb5ae08b4819333b25870
+      CMUX_TUI_BUILD_COMMIT: a9b104f3cb7d3808cf7eb5ae08b4819333b25870
       CMUX_TUI_DISTRIBUTION_VERSION: 0.0.0-r2.sha-a9b104f3cb7d3808cf7eb5ae08b4819333b25870
 
     steps:
