@@ -9441,9 +9441,7 @@ impl Mux {
                     .map(|key| key.as_str().to_string())
                     .collect::<Vec<_>>()
                     .join(",");
-                eprintln!(
-                    "cmux-tui: revival lookup missed {terminal_id}; placement keys: {keys}"
-                );
+                eprintln!("cmux-tui: revival lookup missed {terminal_id}; placement keys: {keys}");
             }
             slot
         })?;
