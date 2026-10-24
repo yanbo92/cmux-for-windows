@@ -203,14 +203,25 @@ unnecessary:
    digest, connection state, and diagnostic errors; do not record screen
    contents, terminal input, or credentials.
 
-The experimental server starts a local `--headless` mux on demand. Windows mux
-control travels through a `relay --socket` child with asynchronous stdio pipes
-because the local `uds_windows` transport is synchronous. Remote state defaults
-to `%LOCALAPPDATA%/cmux/remote/sessions/<session>`; mux startup diagnostics go to
-`mux.log` there. It uses one SSH carrier for all lanes, matching `cmux ssh`'s
-default. Independent carrier lanes and remote daemon administration are not yet
-implemented by this foreground server. The Mac's shell integration and optional
-remote features require separate Windows compatibility work.
+The experimental server starts a local `--headless` mux on demand. That owner is
+spawned with `CREATE_BREAKAWAY_FROM_JOB` (falling back to a plain detached spawn
+when the surrounding job forbids breakaway) because Win32-OpenSSH confines each
+session to a kill-on-close job object: without the escape, the owner, its
+relays, and every remote terminal die with the SSH carrier, and reconnects
+rebuild an empty owner while Mac surfaces stay bound to dead PTYs. With the
+escape, the owner and its terminals survive carrier loss, the Mac client
+re-establishes the carrier, reconnects reuse the live owner, and terminal
+memory (for example shell variables) survives, matching Mac-to-Mac behavior.
+Windows mux control travels through a `relay --socket` child with asynchronous
+stdio pipes because the local `uds_windows` transport is synchronous; those
+relays are per-connection bridges and are expected to be recreated on
+reconnect. Remote state defaults to `%LOCALAPPDATA%/cmux/remote/sessions/<session>`;
+mux startup diagnostics go to `mux.log` there. It uses one SSH carrier for all
+lanes, matching `cmux ssh`'s default. Independent carrier lanes and remote
+daemon administration are not yet implemented by this foreground server. The
+Mac's shell integration and optional remote features require separate Windows
+compatibility work. An owner lost to a Windows reboot or crash still restarts
+empty; boot-time topology restoration for the headless owner is not implemented.
 
 The Mac frontend's fixed `/bin/sh -c 'exec "${SHELL:-/bin/sh}" -l'` default-shell
 bootstrap maps to the Windows shell search order (`pwsh.exe`, `powershell.exe`,
