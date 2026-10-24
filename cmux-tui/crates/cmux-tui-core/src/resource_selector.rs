@@ -813,7 +813,7 @@ fn resolve_terminal(
                         placements.len(),
                         placements
                             .keys()
-                            .filter(|key| matches!(key, crate::ContentPublicId::Terminal(_)))
+                            .filter(|key| matches!(key, ContentPublicId::Terminal(_)))
                             .count(),
                     );
                     ResourceError::not_found("terminal", raw)
