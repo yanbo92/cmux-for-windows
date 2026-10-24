@@ -65,13 +65,13 @@ mod remote_cli {
             "remote_protocol": 5,
             "os": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
-            "remote_link": "unsupported",
+            "remote_link": "stdio",
         });
         if args.iter().any(|argument| argument == "--json") {
             println!("{json}");
         } else {
             println!(
-                "cmux-tui {} remote-protocol=5 {}-{} remote-link=unsupported",
+                "cmux-tui {} remote-protocol=5 {}-{} remote-link=stdio",
                 env!("CARGO_PKG_VERSION"),
                 std::env::consts::OS,
                 std::env::consts::ARCH,
@@ -1232,9 +1232,48 @@ fn run_relay(args: Args) -> anyhow::Result<()> {
     }
     let socket_path =
         args.socket.unwrap_or_else(|| cmux_tui_core::server::default_socket_path(&args.session));
-    let stream = cmux_tui_core::platform::transport::connect(&socket_path).map_err(|error| {
-        anyhow::anyhow!("cannot connect relay to session socket {}: {error}", socket_path.display())
-    })?;
+    // SSH machine clients invoke `cmux-tui relay` directly. Start the
+    // headless owner on demand so a Windows VDI does not need a separate
+    // daemon bootstrap step before the relay can accept JSONL control bytes.
+    let mut owner = None;
+    let stream = loop {
+        match cmux_tui_core::platform::transport::connect(&socket_path) {
+            Ok(stream) => break stream,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused
+                ) && owner.is_none() =>
+            {
+                let executable = std::env::current_exe()?;
+                let mut command = std::process::Command::new(executable);
+                command
+                    .args(["--headless", "--session"])
+                    .arg(&args.session)
+                    .args(["--socket"])
+                    .arg(&socket_path)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null());
+                owner = Some(command.spawn().context("cannot start headless relay owner")?);
+            }
+            Err(error) => {
+                return Err(anyhow::anyhow!(
+                    "cannot connect relay to session socket {}: {error}",
+                    socket_path.display()
+                ));
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        if let Some(child) = owner.as_mut()
+            && let Some(status) = child.try_wait()?
+        {
+            return Err(anyhow::anyhow!(
+                "headless relay owner exited with {status} before creating {}",
+                socket_path.display()
+            ));
+        }
+    };
     let mut reader = stream.try_clone_box()?;
     let mut writer = stream;
 
