@@ -19,6 +19,7 @@ ghostty-vt.workspace = true
 cmux-tui-core.workspace = true
 cmux-remote.workspace = true
 cmux-remote-protocol.workspace = true
+fs4.workspace = true
 cmux-tui-machine-protocol.workspace = true
 ratatui.workspace = true
 crossterm.workspace = true

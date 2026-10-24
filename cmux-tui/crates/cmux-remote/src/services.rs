@@ -618,19 +618,34 @@ impl DaemonServices {
         Self::serve_mux_control_with_budget(None, stream, MuxUploadBudget::new()).await
     }
 
-    #[cfg(not(unix))]
+    #[cfg(windows)]
     async fn serve_mux_control_with_budget(
-        _mux_socket: Option<PathBuf>,
+        mux_socket: Option<PathBuf>,
         stream: ServiceStream,
-        _upload_budget: MuxUploadBudget,
+        upload_budget: MuxUploadBudget,
     ) -> Result<(), ServicesError> {
-        stream
-            .reject(
-                "unsupported".to_string(),
-                "mux control bridge requires Unix sockets".to_string(),
-            )
-            .await?;
-        Ok(())
+        let path = mux_socket.ok_or_else(|| {
+            ServicesError::Unavailable("mux control socket is not configured".into())
+        })?;
+        // uds_windows exposes a blocking AF_UNIX stream. The existing CLI
+        // relay owns that socket while Tokio asynchronously drives its pipes.
+        let mut relay = tokio::process::Command::new(std::env::current_exe()?)
+            .arg("relay")
+            .arg("--socket")
+            .arg(path)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::inherit())
+            .kill_on_drop(true)
+            .spawn()?;
+        let reader = relay.stdout.take().expect("relay stdout was piped");
+        let writer = relay.stdin.take().expect("relay stdin was piped");
+        let stream = Arc::new(stream);
+        send_opened(&stream, Lane::Interactive).await?;
+        let result = pump_mux_server_with_budget(stream, reader, writer, upload_budget).await;
+        let _ = relay.kill().await;
+        let _ = relay.wait().await;
+        result
     }
 }
 
