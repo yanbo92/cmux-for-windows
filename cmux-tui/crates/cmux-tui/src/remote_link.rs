@@ -83,12 +83,35 @@ fn ensure_mux_owner(session: &str, state_dir: &Path, socket: &Path) -> anyhow::R
         .stdin(Stdio::null())
         .stdout(Stdio::from(log.try_clone()?))
         .stderr(Stdio::from(log));
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0000_0008 | 0x0000_0200);
+    let mut child = {
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const DETACHED_PROCESS: u32 = 0x0000_0008;
+            const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+            const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+            // Win32-OpenSSH confines each session to a kill-on-close job
+            // object, so a detached owner still dies with its SSH carrier.
+            // Break the owner out so it survives carrier loss and reconnects
+            // reuse live terminals. Jobs that forbid breakaway reject the
+            // escape flag, so fall back to a plain detached spawn.
+            let escaped = command
+                .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB)
+                .spawn();
+            match escaped {
+                Ok(child) => Ok(child),
+                Err(_) => {
+                    command.creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+                    command.spawn()
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            command.spawn()
+        }
     }
-    let mut child = command.spawn().context("could not start remote mux owner")?;
+    .context("could not start remote mux owner")?;
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         if cmux_tui_core::platform::transport::connect(socket).is_ok() {
