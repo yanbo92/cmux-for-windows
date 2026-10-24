@@ -20,6 +20,7 @@ mod machine_runtime;
 mod plugin_manager;
 mod process_diagnostics;
 mod pty_input;
+mod remote_link;
 mod remote_cli {
     const REMOTE_COMMANDS: &[&str] = &[
         "connect",
@@ -44,16 +45,7 @@ mod remote_cli {
             return run_probe(&args[1..]);
         }
         if args.first().map(String::as_str) == Some("remote-link") {
-            let stdio = args.iter().any(|argument| argument == "--stdio");
-            let session = args
-                .windows(2)
-                .find(|pair| pair[0] == "--session")
-                .map(|pair| pair[1].as_str())
-                .unwrap_or("main");
-            eprintln!(
-                "cmux-tui: remote-link requested (stdio={stdio}, session={session:?}); the Windows fork has no framed remote daemon server"
-            );
-            return 1;
+            return crate::remote_link::run(&args[1..]);
         }
         eprintln!(
             "cmux-tui: remote daemon commands require Unix sockets and are unsupported on {}",
@@ -70,7 +62,6 @@ mod remote_cli {
             "npm_bootstrap_version": serde_json::Value::Null,
             "build_identity": cmux_remote::ssh_bootstrap::BUILD_IDENTITY,
             // Keep this diagnostic compatible with the upstream probe schema.
-            // The framed remote-link server is still intentionally absent.
             "remote_protocol": 5,
             "os": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
@@ -86,9 +77,6 @@ mod remote_cli {
                 std::env::consts::ARCH,
             );
         }
-        eprintln!(
-            "cmux-tui: remote-probe served by the Windows fork; remote-link is not implemented"
-        );
         0
     }
 }

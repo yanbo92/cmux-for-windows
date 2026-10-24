@@ -34,11 +34,21 @@ pub fn ensure_secure_directory(path: &Path, access: DirectoryAccess) -> io::Resu
     }
     #[cfg(not(unix))]
     {
-        let _ = (path, access);
-        Err(io::Error::new(
-            io::ErrorKind::Unsupported,
-            "secure state directories require platform owner-access enforcement",
-        ))
+        // Windows does not expose POSIX owner and mode bits. Keep the state
+        // boundary race-resistant at the filesystem level by creating the
+        // directory tree, rejecting symlinked final paths, and requiring the
+        // final component to remain a directory. ACL inheritance on the
+        // per-user Windows profile provides the access boundary.
+        let _ = access;
+        std::fs::create_dir_all(path)?;
+        let metadata = std::fs::symlink_metadata(path)?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("secure state path {} is not a directory", path.display()),
+            ));
+        }
+        Ok(())
     }
 }
 

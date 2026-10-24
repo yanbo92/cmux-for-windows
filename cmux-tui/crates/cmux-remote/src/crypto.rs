@@ -160,6 +160,15 @@ pub enum InboundAuthEvidence {
 }
 
 impl InboundAuthEvidence {
+    /// Marks a link whose peer was authenticated by the SSH transport.
+    ///
+    /// The SSH process boundary is the trust decision here; the principal is
+    /// retained only for diagnostics and must be non-empty.
+    pub fn ssh(principal: impl Into<String>) -> Option<Self> {
+        let principal = principal.into();
+        (!principal.is_empty()).then_some(Self::Ssh(VerifiedSshPrincipal { principal }))
+    }
+
     pub(crate) fn verified_same_owner_kernel_peer(
         peer_uid: u32,
         effective_uid: u32,
