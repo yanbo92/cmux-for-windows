@@ -9414,6 +9414,23 @@ impl Mux {
         self.open_public_terminal_tab(terminal_id.as_str(), None).ok()
     }
 
+    /// Materialize a persisted terminal tab after an owner restart when a
+    /// control client addresses its stable surface slot. The slot survives in
+    /// the durable registry, so a reconnecting client's first command revives
+    /// the terminal instead of every command reporting an unknown surface.
+    pub fn revive_persisted_terminal(self: &Arc<Self>, slot: SurfaceId) -> Option<Arc<Surface>> {
+        let tab_id = {
+            let state = self.state.lock().unwrap();
+            match state.resource_indexes.content_ids.get(&slot) {
+                Some(ContentPublicId::Terminal(_)) => {
+                    state.resource_indexes.tab_ids.get(&slot)?.clone()
+                }
+                _ => return None,
+            }
+        };
+        self.open_public_terminal_tab(tab_id.as_str(), None).ok()
+    }
+
     /// Split a pane addressed by public id and create a fresh terminal in the new pane.
     pub fn split_public_pane(
         self: &Arc<Self>,
@@ -17727,6 +17744,16 @@ mod tests {
                 Some((90, 30)),
             )
             .unwrap();
+        let beta_cwd = root.join("beta-project");
+        std::fs::create_dir_all(&beta_cwd).unwrap();
+        let beta = first.create_empty_workspace(Some("Beta".into()), None, None).unwrap();
+        let beta_surface = first
+            .open_workspace_terminal(
+                beta.workspace,
+                Some(beta_cwd.to_string_lossy().into_owned()),
+                Some((90, 30)),
+            )
+            .unwrap();
         let terminal_id = first.with_state(|state| {
             match state.resource_indexes.content_ids.get(&surface.id).unwrap() {
                 ContentPublicId::Terminal(id) => id.to_string(),
@@ -17748,7 +17775,9 @@ mod tests {
         )
         .unwrap();
         assert!(before.get("value").is_some(), "live terminal read failed: {before}");
+        let beta_slot = beta_surface.id;
         drop(surface);
+        drop(beta_surface);
         drop(first);
 
         let reopened = Mux::from_workspace_registry(
@@ -17773,6 +17802,14 @@ mod tests {
             .expect("revived terminal is live");
         assert_eq!(revived.spawn_cwd().as_deref(), Some(alpha_cwd.to_string_lossy().as_ref()));
         drop(revived);
+        let revived_by_slot = reopened
+            .revive_persisted_terminal(beta_slot)
+            .expect("control-slot revival materializes the persisted terminal");
+        assert_eq!(
+            revived_by_slot.spawn_cwd().as_deref(),
+            Some(beta_cwd.to_string_lossy().as_ref())
+        );
+        drop(revived_by_slot);
         drop(reopened);
         std::fs::remove_dir_all(root).unwrap();
     }

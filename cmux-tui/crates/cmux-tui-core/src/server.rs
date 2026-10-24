@@ -7062,7 +7062,7 @@ fn handle_request_with_cancellation(
 }
 
 fn send_vt_state_command_response(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     id: Option<Value>,
     surface: SurfaceId,
     writer: &MessageWriter,
@@ -7824,8 +7824,18 @@ fn ids_json(state: &State, kind: Option<&str>) -> anyhow::Result<Value> {
     }))
 }
 
-fn get_surface(mux: &Mux, id: SurfaceId) -> anyhow::Result<Arc<crate::Surface>> {
-    mux.surface(id).ok_or_else(|| anyhow::anyhow!("unknown surface {id}"))
+fn get_surface(mux: &Arc<Mux>, id: SurfaceId) -> anyhow::Result<Arc<crate::Surface>> {
+    if let Some(surface) = mux.surface(id) {
+        return Ok(surface);
+    }
+    // An owner restart drops live surfaces while the durable registry keeps
+    // the terminal tab. Materialize it so a reconnecting control client
+    // revives its terminal on first touch instead of every command
+    // reporting an unknown surface.
+    if let Some(surface) = mux.revive_persisted_terminal(id) {
+        return Ok(surface);
+    }
+    anyhow::bail!("unknown surface {id}")
 }
 
 fn surface_has_view_placement(mux: &Mux, id: SurfaceId) -> bool {
@@ -7882,7 +7892,7 @@ fn require_browser(surface: &crate::Surface) -> anyhow::Result<()> {
 }
 
 fn handle_browser_frame_presented(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     client: u64,
     surface: SurfaceId,
     frame_seq: u64,
@@ -7911,7 +7921,7 @@ struct BrowserMouseCommand<'a> {
 }
 
 fn handle_browser_mouse_command(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     client: u64,
     command: BrowserMouseCommand<'_>,
 ) -> anyhow::Result<Value> {
@@ -7943,7 +7953,7 @@ fn handle_browser_mouse_command(
 }
 
 fn handle_browser_wheel_command(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     client: u64,
     surface: SurfaceId,
     x_px: f64,
@@ -9987,7 +9997,11 @@ fn handle_command_with_cancellation(
             Ok(json!({}))
         }
         Command::CloseSurface { surface } => {
-            get_surface(mux, surface)?;
+            // Closing must not revive: a persisted terminal is closed as a
+            // registry record, never by spawning a shell for it first.
+            if mux.surface(surface).is_none() {
+                anyhow::bail!("unknown surface {surface}");
+            }
             if !mux.close_surface(surface)? {
                 anyhow::bail!("unknown surface {surface}");
             }

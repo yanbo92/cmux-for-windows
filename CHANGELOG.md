@@ -13,7 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Added a Windows executable integration test that completes the remote handshake and issues a mux control request; documented the Actions → MacBook Air download → internal SCP → VDI testing loop.
 - Mapped the Mac SSH frontend's fixed Unix default-shell bootstrap to the native Windows shell while preserving all other explicit command arguments.
 - Broke the remote mux owner out of the Win32-OpenSSH kill-on-close session job with `CREATE_BREAKAWAY_FROM_JOB` (plus a plain-detached fallback), so the owner and its remote terminals survive SSH carrier loss and reconnects reuse them instead of rebuilding an empty owner.
-- Revived persisted remote terminals lazily through resource routing: after an owner restart (Windows reboot or crash), the first terminal operation materializes the durable tab exactly like the local GUI reopening a restored tab, instead of every operation reporting the terminal missing.
+- Revived persisted remote terminals lazily after an owner restart (Windows reboot or crash): the first control command or resource operation addressing the terminal materializes the durable tab exactly like the local GUI reopening a restored tab, instead of reporting an unknown surface and leaving clients bound to dead PTYs. Closing a surface never revives it.
 
 ## [0.3.8] - 2026-08-13
 
