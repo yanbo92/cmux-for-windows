@@ -39,12 +39,45 @@ mod remote_cli {
         args.first().is_some_and(|argument| REMOTE_COMMANDS.contains(&argument.as_str()))
     }
 
-    pub fn run(_: &[String], _: &str) -> i32 {
+    pub fn run(args: &[String], _: &str) -> i32 {
+        if args.first().map(String::as_str) == Some("remote-probe") {
+            return run_probe(&args[1..]);
+        }
         eprintln!(
             "cmux-tui: remote daemon commands require Unix sockets and are unsupported on {}",
             std::env::consts::OS
         );
         1
+    }
+
+    fn run_probe(args: &[String]) -> i32 {
+        let json = serde_json::json!({
+            "app": "cmux-tui",
+            "version": env!("CARGO_PKG_VERSION"),
+            "distribution_version": env!("CARGO_PKG_VERSION"),
+            "npm_bootstrap_version": serde_json::Value::Null,
+            "build_identity": "sweetcornna-windows-fork",
+            // Keep this diagnostic compatible with the upstream probe schema.
+            // The framed remote-link server is still intentionally absent.
+            "remote_protocol": 5,
+            "os": std::env::consts::OS,
+            "arch": std::env::consts::ARCH,
+            "remote_link": "unsupported",
+        });
+        if args.iter().any(|argument| argument == "--json") {
+            println!("{json}");
+        } else {
+            println!(
+                "cmux-tui {} remote-protocol=5 {}-{} remote-link=unsupported",
+                env!("CARGO_PKG_VERSION"),
+                std::env::consts::OS,
+                std::env::consts::ARCH,
+            );
+        }
+        eprintln!(
+            "cmux-tui: remote-probe served by the Windows fork; remote-link is not implemented"
+        );
+        0
     }
 }
 mod session;
