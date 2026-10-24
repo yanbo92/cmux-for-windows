@@ -11022,10 +11022,7 @@ mod tests {
         .unwrap();
         let (_, revived) = resource_terminal_surface(&reopened, &selectors)
             .expect("attach resolution revives the persisted terminal");
-        assert_eq!(
-            revived.spawn_cwd().as_deref(),
-            Some(project.to_string_lossy().as_ref())
-        );
+        assert_eq!(revived.spawn_cwd().as_deref(), Some(project.to_string_lossy().as_ref()));
         drop(revived);
         drop(reopened);
         std::fs::remove_dir_all(root).unwrap();
