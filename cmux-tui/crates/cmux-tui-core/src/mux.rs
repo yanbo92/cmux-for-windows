@@ -2186,7 +2186,21 @@ impl Mux {
         mux.adopt_terminal_hosts()?;
         {
             let mut state = mux.state.lock().unwrap();
+            let before_placements = state.resource_indexes.content_placements.len();
+            let before_contents = state.resource_indexes.content_ids.len();
+            let before_tabs = state.resource_indexes.tabs.len();
+            eprintln!(
+                "cmux-tui: restore indexes placements={before_placements} contents={before_contents} tabs={before_tabs}"
+            );
             state.rebuild_resource_indexes();
+            let after_placements = state.resource_indexes.content_placements.len();
+            let after_contents = state.resource_indexes.content_ids.len();
+            let after_tabs = state.resource_indexes.tabs.len();
+            let pane_tab_total: usize =
+                state.panes.values().map(|pane| pane.tabs.len()).sum();
+            eprintln!(
+                "cmux-tui: rebuilt indexes placements={after_placements} contents={after_contents} tabs={after_tabs} live_pane_tabs={pane_tab_total}"
+            );
             for content in &contents {
                 if let Some(surface) = state.surfaces.get(&content.slot) {
                     surface.set_name(content.name.clone());
