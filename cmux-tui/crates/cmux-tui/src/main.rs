@@ -58,8 +58,8 @@ mod remote_cli {
         let json = serde_json::json!({
             "app": "cmux-tui",
             "version": env!("CARGO_PKG_VERSION"),
-            "distribution_version": env!("CARGO_PKG_VERSION"),
-            "npm_bootstrap_version": serde_json::Value::Null,
+            "distribution_version": cmux_remote::ssh_bootstrap::DISTRIBUTION_VERSION,
+            "npm_bootstrap_version": cmux_remote::ssh_bootstrap::NPM_BOOTSTRAP_VERSION,
             "build_identity": cmux_remote::ssh_bootstrap::BUILD_IDENTITY,
             // Keep this diagnostic compatible with the upstream probe schema.
             "remote_protocol": 5,
