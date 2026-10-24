@@ -9438,7 +9438,7 @@ impl Mux {
                     .resource_indexes
                     .content_placements
                     .keys()
-                    .map(|key| key.to_string())
+                    .map(|key| key.as_str().to_string())
                     .collect::<Vec<_>>()
                     .join(",");
                 eprintln!(
