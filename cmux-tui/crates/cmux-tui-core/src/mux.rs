@@ -17789,6 +17789,26 @@ mod tests {
         )
         .unwrap();
         reopened.with_state(|state| assert!(state.surfaces.is_empty()));
+        let diag_tabs = reopened
+            .workspace_registry
+            .lock()
+            .unwrap()
+            .resource_topology_snapshot()
+            .unwrap()
+            .tabs
+            .len();
+        let diag_placements = reopened.with_state(|state| {
+            state
+                .resource_indexes
+                .content_placements
+                .get(&ContentPublicId::Terminal(TerminalPublicId::parse(terminal_id.clone()).unwrap()))
+                .map(|placements| placements.len())
+                .unwrap_or(0)
+        });
+        assert!(
+            diag_tabs >= 1 && diag_placements >= 1,
+            "restart diagnostics: registry tabs={diag_tabs}, placements={diag_placements}"
+        );
         let after = serde_json::from_slice::<serde_json::Value>(
             &reopened.local_resource_response_json(&request(&terminal_id)).unwrap(),
         )
