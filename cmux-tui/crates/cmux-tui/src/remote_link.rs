@@ -78,7 +78,9 @@ async fn serve(session: String, state_dir: PathBuf) -> anyhow::Result<()> {
         .recv()
         .await
         .ok_or_else(|| anyhow!("remote daemon closed before accepting the SSH client"))?;
-    let result = services.serve_client(client).await.map_err(|error| anyhow!(error));
+    let local = tokio::task::LocalSet::new();
+    let result =
+        local.run_until(services.serve_client(client)).await.map_err(|error| anyhow!(error));
     let auth_result = auth.shutdown().await.map_err(|error| anyhow!(error));
     result.and(auth_result)
 }
