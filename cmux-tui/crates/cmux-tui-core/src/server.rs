@@ -5440,7 +5440,7 @@ fn resource_client_metadata_update(
 }
 
 fn resource_terminal_surface(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     selectors: &crate::ResourceSelectors,
 ) -> Result<(TerminalPublicId, Arc<crate::Surface>), ResourceError> {
     let mut route = selectors.clone();
@@ -5449,11 +5449,12 @@ fn resource_terminal_surface(
         .resolve_resource_path(crate::ResourceTarget::Terminal, &route)?
         .terminal
         .ok_or_else(|| ResourceError::not_found("terminal", "<resolved>"))?;
-    let surface_id = mux
-        .resource_surface_for_terminal(&terminal_id)
-        .ok_or_else(|| ResourceError::not_found("terminal", terminal_id.as_str()))?;
+    // Persisted terminals revive on first control access after an owner
+    // restart, matching resource routing: an attach or viewer command
+    // materializes the durable tab instead of reporting it missing and
+    // leaving remote clients bound to dead PTYs.
     let surface = mux
-        .surface(surface_id)
+        .terminal_surface_by_public_id(&terminal_id)
         .filter(|surface| surface.kind() == SurfaceKind::Pty)
         .ok_or_else(|| ResourceError::not_found("terminal", terminal_id.as_str()))?;
     Ok((terminal_id, surface))
@@ -5480,7 +5481,7 @@ fn resource_browser_surface(
 }
 
 fn resource_client_sizing_set(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     requesting_client: u64,
     request: &crate::resource_router::ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
@@ -5524,7 +5525,7 @@ fn resource_client_sizing_set(
 }
 
 fn resource_client_sizing_release(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     requesting_client: u64,
     request: &crate::resource_router::ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
@@ -5617,7 +5618,7 @@ fn resource_client_cell_pixels_set(
 }
 
 fn resource_terminal_viewer_resize(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     client: u64,
     request: &crate::resource_router::ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
@@ -5656,7 +5657,7 @@ fn release_resource_viewer_size(mux: &Mux, client: u64, surface: SurfaceId) {
 }
 
 fn resource_terminal_viewer_release(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     client: u64,
     request: &crate::resource_router::ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
@@ -5720,7 +5721,7 @@ fn resource_browser_viewer_release(
 }
 
 fn resource_terminal_renderer_grant(
-    mux: &Mux,
+    mux: &Arc<Mux>,
     request: &crate::resource_router::ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
     let operation = "terminal.renderer_grant.create";
@@ -10981,6 +10982,53 @@ mod tests {
             default_socket_path_in_runtime_dir("main", runtime_dir.clone()),
             runtime_dir.join("main.sock")
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn terminal_attach_resolution_revives_persisted_terminal_after_owner_restart() {
+        let root = std::env::temp_dir().join(format!(
+            "cmux-attach-revive-{}",
+            crate::resource::WorkspacePublicId::random().unwrap(),
+        ));
+        let project = root.join("attach-project");
+        std::fs::create_dir_all(&project).unwrap();
+        let session = "cmux-attach-revive";
+        let first = Mux::open_persistent(session, SurfaceOptions::default(), &root).unwrap();
+        let workspace = first.create_empty_workspace(Some("Attach".into()), None, None).unwrap();
+        let surface = first
+            .open_workspace_terminal(
+                workspace.workspace,
+                Some(project.to_string_lossy().into_owned()),
+                Some((90, 30)),
+            )
+            .unwrap();
+        let terminal_id = first.with_state(|state| {
+            match state.resource_indexes.content_ids.get(&surface.id).unwrap() {
+                ContentPublicId::Terminal(id) => id.to_string(),
+                other => panic!("unexpected content identity {other:?}"),
+            }
+        });
+        drop(surface);
+        drop(first);
+
+        let reopened = Mux::open_persistent(session, SurfaceOptions::default(), &root).unwrap();
+        reopened.with_state(|state| assert!(state.surfaces.is_empty()));
+        let selectors = serde_json::from_value::<crate::ResourceSelectors>(serde_json::json!({
+            "machine": "current",
+            "session": "current",
+            "terminal": terminal_id,
+        }))
+        .unwrap();
+        let (_, revived) = resource_terminal_surface(&reopened, &selectors)
+            .expect("attach resolution revives the persisted terminal");
+        assert_eq!(
+            revived.spawn_cwd().as_deref(),
+            Some(project.to_string_lossy().as_ref())
+        );
+        drop(revived);
+        drop(reopened);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[cfg(unix)]
