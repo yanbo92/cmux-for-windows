@@ -9399,6 +9399,21 @@ impl Mux {
         self.new_tab(Some(pane), None, size)
     }
 
+    /// Resolve a live terminal surface by public id, lazily materializing a
+    /// persisted terminal after an owner restart exactly like the local GUI
+    /// reopening a restored tab. Remote clients reach this through resource
+    /// routing, so a reconnect after an owner restart revives its terminal
+    /// instead of every operation reporting the tab missing.
+    pub fn terminal_surface_by_public_id(
+        self: &Arc<Self>,
+        terminal_id: &TerminalPublicId,
+    ) -> Option<Arc<Surface>> {
+        if let Some(surface_id) = self.resource_surface_for_terminal(terminal_id) {
+            return self.surface(surface_id).filter(|surface| surface.kind() == SurfaceKind::Pty);
+        }
+        self.open_public_terminal_tab(terminal_id.as_str(), None).ok()
+    }
+
     /// Split a pane addressed by public id and create a fresh terminal in the new pane.
     pub fn split_public_pane(
         self: &Arc<Self>,
@@ -17684,6 +17699,80 @@ mod tests {
         drop(split);
         drop(restored_alpha);
         drop(restored_beta);
+        drop(reopened);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn resource_routing_revives_persisted_terminals_after_owner_restart() {
+        let root = std::env::temp_dir()
+            .join(format!("cmux-resource-revive-{}", WorkspacePublicId::random().unwrap()));
+        let alpha_cwd = root.join("alpha-project");
+        std::fs::create_dir_all(&alpha_cwd).unwrap();
+        let session = "cmux-resource-revive";
+        let first = Mux::from_workspace_registry(
+            session.into(),
+            SurfaceOptions::default(),
+            WorkspaceRegistry::open(&root, session).unwrap(),
+            ProviderWorkspaceState::default(),
+            true,
+        )
+        .unwrap();
+        let alpha = first.create_empty_workspace(Some("Alpha".into()), None, None).unwrap();
+        let surface = first
+            .open_workspace_terminal(
+                alpha.workspace,
+                Some(alpha_cwd.to_string_lossy().into_owned()),
+                Some((90, 30)),
+            )
+            .unwrap();
+        let terminal_id = first.with_state(|state| {
+            match state.resource_indexes.content_ids.get(&surface.id).unwrap() {
+                ContentPublicId::Terminal(id) => id.to_string(),
+                other => panic!("unexpected content identity {other:?}"),
+            }
+        });
+        let request = |terminal: &str| {
+            serde_json::to_string(&serde_json::json!({
+                "protocol":"cmux.protocol/2",
+                "type":"request",
+                "id":"revive-test",
+                "operation":"terminal.screen.read",
+                "params":{"machine":"current","session":"current","terminal":terminal},
+            }))
+            .unwrap()
+        };
+        let before = serde_json::from_slice::<serde_json::Value>(
+            &first.local_resource_response_json(&request(&terminal_id)).unwrap(),
+        )
+        .unwrap();
+        assert!(before.get("value").is_some(), "live terminal read failed: {before}");
+        drop(surface);
+        drop(first);
+
+        let reopened = Mux::from_workspace_registry(
+            session.into(),
+            SurfaceOptions::default(),
+            WorkspaceRegistry::open(&root, session).unwrap(),
+            ProviderWorkspaceState::default(),
+            true,
+        )
+        .unwrap();
+        reopened.with_state(|state| assert!(state.surfaces.is_empty()));
+        let after = serde_json::from_slice::<serde_json::Value>(
+            &reopened.local_resource_response_json(&request(&terminal_id)).unwrap(),
+        )
+        .unwrap();
+        assert!(
+            after.get("value").is_some(),
+            "restarted owner did not revive the persisted terminal: {after}"
+        );
+        let revived = reopened
+            .terminal_surface_by_public_id(&TerminalPublicId::parse(terminal_id).unwrap())
+            .expect("revived terminal is live");
+        assert_eq!(revived.spawn_cwd().as_deref(), Some(alpha_cwd.to_string_lossy().as_ref()));
+        drop(revived);
         drop(reopened);
         std::fs::remove_dir_all(root).unwrap();
     }

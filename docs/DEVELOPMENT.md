@@ -226,8 +226,12 @@ mux startup diagnostics go to `mux.log` there. It uses one SSH carrier for all
 lanes, matching `cmux ssh`'s default. Independent carrier lanes and remote
 daemon administration are not yet implemented by this foreground server. The
 Mac's shell integration and optional remote features require separate Windows
-compatibility work. An owner lost to a Windows reboot or crash still restarts
-empty; boot-time topology restoration for the headless owner is not implemented.
+compatibility work. An owner lost to a Windows reboot or crash is restarted by
+the next carrier: it rehydrates the durable topology, and each persisted
+terminal tab is materialized on first access through resource routing — the
+same semantics as the Windows GUI restart, a fresh ConPTY with the restored
+working directory and provider resume argv, without old processes, output, or
+scrollback.
 
 The Mac frontend's fixed `/bin/sh -c 'exec "${SHELL:-/bin/sh}" -l'` default-shell
 bootstrap maps to the Windows shell search order (`pwsh.exe`, `powershell.exe`,

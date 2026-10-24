@@ -1044,12 +1044,8 @@ fn resolve_terminal_surface(
     let path = mux.resolve_resource_path(ResourceTarget::Terminal, selectors)?;
     let terminal_id =
         path.terminal.ok_or_else(|| ResourceError::not_found("terminal", "<resolved>"))?;
-    let surface_id = mux
-        .resource_surface_for_terminal(&terminal_id)
-        .ok_or_else(|| ResourceError::not_found("terminal", terminal_id.as_str()))?;
     let surface = mux
-        .surface(surface_id)
-        .filter(|surface| surface.kind() == SurfaceKind::Pty)
+        .terminal_surface_by_public_id(&terminal_id)
         .ok_or_else(|| ResourceError::not_found("terminal", terminal_id.as_str()))?;
     Ok((terminal_id, surface))
 }
