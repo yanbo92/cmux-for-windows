@@ -805,7 +805,19 @@ fn resolve_terminal(
                     )
                 })
                 .or_else(|| state.terminal_catalog.get(&id).map(|surface| surface.id))
-                .ok_or_else(|| ResourceError::not_found("terminal", raw))?;
+                .ok_or_else(|| {
+                    let placements = &state.resource_indexes.content_placements;
+                    eprintln!(
+                        "cmux-tui: terminal selector miss {} placements={} terminal_keys={}",
+                        raw,
+                        placements.len(),
+                        placements
+                            .keys()
+                            .filter(|key| matches!(key, crate::ContentPublicId::Terminal(_)))
+                            .count(),
+                    );
+                    ResourceError::not_found("terminal", raw)
+                })?;
             validate_content_parent(state, "terminal", id.as_str(), parent, slot)?;
             Ok((slot, id))
         }
