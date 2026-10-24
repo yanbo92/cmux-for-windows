@@ -43,6 +43,18 @@ mod remote_cli {
         if args.first().map(String::as_str) == Some("remote-probe") {
             return run_probe(&args[1..]);
         }
+        if args.first().map(String::as_str) == Some("remote-link") {
+            let stdio = args.iter().any(|argument| argument == "--stdio");
+            let session = args
+                .windows(2)
+                .find(|pair| pair[0] == "--session")
+                .map(|pair| pair[1].as_str())
+                .unwrap_or("main");
+            eprintln!(
+                "cmux-tui: remote-link requested (stdio={stdio}, session={session:?}); the Windows fork has no framed remote daemon server"
+            );
+            return 1;
+        }
         eprintln!(
             "cmux-tui: remote daemon commands require Unix sockets and are unsupported on {}",
             std::env::consts::OS

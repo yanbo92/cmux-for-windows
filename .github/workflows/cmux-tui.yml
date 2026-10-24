@@ -45,6 +45,18 @@ jobs:
           rustup target add x86_64-pc-windows-gnu
           printf '%s\n' 'C:\msys64\mingw64\bin' >> "$GITHUB_PATH"
 
+      - name: Cache Rust and Ghostty build data
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~\.cargo\registry
+            ~\.cargo\git
+            cmux-tui\target
+            ghostty\zig-cache
+          key: windows-gnu-${{ hashFiles('cmux-tui/Cargo.lock', 'ghostty/build.zig.zon') }}
+          restore-keys: |
+            windows-gnu-
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path cmux-tui/Cargo.toml --all -- --check
 
