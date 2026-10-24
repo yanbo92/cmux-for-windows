@@ -2207,13 +2207,16 @@ impl Mux {
             }
         }
         let recovery_deadline = Instant::now() + Duration::from_secs(15);
+        let mut reconcile_rounds = 0u32;
         while mux.reconcile_interrupted_resource_creations()? {
+            reconcile_rounds += 1;
             if Instant::now() >= recovery_deadline {
                 mux.shutdown();
                 anyhow::bail!("interrupted resource creation did not settle during startup");
             }
             std::thread::sleep(Duration::from_millis(25));
         }
+        eprintln!("cmux-tui: startup reconcile rounds={reconcile_rounds}");
         Ok(mux)
     }
 
