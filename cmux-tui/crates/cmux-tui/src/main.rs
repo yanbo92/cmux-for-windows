@@ -68,7 +68,7 @@ mod remote_cli {
             "version": env!("CARGO_PKG_VERSION"),
             "distribution_version": env!("CARGO_PKG_VERSION"),
             "npm_bootstrap_version": serde_json::Value::Null,
-            "build_identity": "sweetcornna-windows-fork",
+            "build_identity": cmux_remote::ssh_bootstrap::BUILD_IDENTITY,
             // Keep this diagnostic compatible with the upstream probe schema.
             // The framed remote-link server is still intentionally absent.
             "remote_protocol": 5,
