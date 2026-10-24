@@ -17,6 +17,8 @@ path = "src/main.rs"
 [dependencies]
 ghostty-vt.workspace = true
 cmux-tui-core.workspace = true
+cmux-remote.workspace = true
+cmux-remote-protocol.workspace = true
 cmux-tui-machine-protocol.workspace = true
 ratatui.workspace = true
 crossterm.workspace = true
@@ -36,6 +38,7 @@ terminput-crossterm.workspace = true
 parking_lot.workspace = true
 sha2.workspace = true
 uuid.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 cmux-pty.workspace = true
