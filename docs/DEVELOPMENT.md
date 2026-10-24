@@ -228,10 +228,10 @@ daemon administration are not yet implemented by this foreground server. The
 Mac's shell integration and optional remote features require separate Windows
 compatibility work. An owner lost to a Windows reboot or crash is restarted by
 the next carrier: it rehydrates the durable topology, and each persisted
-terminal tab is materialized on first access through resource routing — the
-same semantics as the Windows GUI restart, a fresh ConPTY with the restored
-working directory and provider resume argv, without old processes, output, or
-scrollback.
+terminal tab is materialized on first access through resource routing or the
+control-path attach resolution a reconnecting client uses — the same semantics
+as the Windows GUI restart, a fresh ConPTY with the restored working directory
+and provider resume argv, without old processes, output, or scrollback.
 
 The Mac frontend's fixed `/bin/sh -c 'exec "${SHELL:-/bin/sh}" -l'` default-shell
 bootstrap maps to the Windows shell search order (`pwsh.exe`, `powershell.exe`,
