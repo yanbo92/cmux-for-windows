@@ -2196,8 +2196,7 @@ impl Mux {
             let after_placements = state.resource_indexes.content_placements.len();
             let after_contents = state.resource_indexes.content_ids.len();
             let after_tabs = state.resource_indexes.tabs.len();
-            let pane_tab_total: usize =
-                state.panes.values().map(|pane| pane.tabs.len()).sum();
+            let pane_tab_total: usize = state.panes.values().map(|pane| pane.tabs.len()).sum();
             eprintln!(
                 "cmux-tui: rebuilt indexes placements={after_placements} contents={after_contents} tabs={after_tabs} live_pane_tabs={pane_tab_total}"
             );
