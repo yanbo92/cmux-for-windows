@@ -51,6 +51,26 @@ jobs:
       - name: Build Windows engine and TUI
         run: cargo build --manifest-path cmux-tui/Cargo.toml -p cmux-tui -p cmux-ffi --target x86_64-pc-windows-gnu --locked
 
+      - name: Stage Windows iteration binaries
+        shell: pwsh
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP 'cmux-windows-iteration'
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item `
+            'cmux-tui\target\x86_64-pc-windows-gnu\debug\cmux-tui.exe' `
+            (Join-Path $stage 'cmux-tui.exe')
+          Copy-Item `
+            'cmux-tui\target\x86_64-pc-windows-gnu\debug\cmux_ffi.dll' `
+            (Join-Path $stage 'cmux_ffi.dll')
+
+      - name: Upload Windows iteration binaries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cmux-windows-iteration-${{ github.sha }}
+          path: ${{ runner.temp }}/cmux-windows-iteration
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Test terminal key encoding
         run: cargo test --manifest-path cmux-tui/Cargo.toml -p ghostty-vt --lib --target x86_64-pc-windows-gnu --locked key::tests::chord_parser_encodes_common_keys
 

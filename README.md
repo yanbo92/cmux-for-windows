@@ -124,6 +124,8 @@ dotnet build .\windows\CmuxGui\CmuxGui.csproj -c Debug -r win-x64
 
 The complete toolchain and the GNU-host linker requirement are documented in [Development](docs/DEVELOPMENT.md).
 
+For iteration builds without installing the Windows toolchain locally, run the [`Windows` GitHub Actions workflow](.github/workflows/cmux-tui.yml) manually and download its seven-day `cmux-windows-iteration-<commit>` artifact. It contains the standalone `cmux-tui.exe` and `cmux_ffi.dll`; the workflow does not produce the signed public installer.
+
 ## Data and diagnostics
 
 | Purpose | Location |

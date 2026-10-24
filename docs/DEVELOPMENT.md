@@ -159,6 +159,10 @@ dotnet build .\windows\CmuxGui\CmuxGui.csproj -c Debug -r win-x64
 
 The full inherited Rust test suite is not a supported Windows gate. Some retained core test modules still hard-code `/bin/sh` and `/tmp`, and ConPTY does not yet have complete automated coverage.
 
+### GitHub Actions iteration binaries
+
+The [`Windows` workflow](../.github/workflows/cmux-tui.yml) runs on `windows-latest` and can be started with `workflow_dispatch`. After the Rust build, it uploads a `cmux-windows-iteration-<commit>` artifact containing `cmux-tui.exe` and `cmux_ffi.dll` for seven days. Download that artifact from the workflow run when testing a Windows target without installing the Rust, Zig, or WinUI toolchains locally. The artifact is an iteration build, not the signed public installer.
+
 For GUI changes, manually verify:
 
 1. Create, rename, reorder, switch, and close workspaces. Exercise `Ctrl+Shift+N`, `Ctrl+Shift+PageUp/PageDown`, `Ctrl+Shift+1` through `Ctrl+Shift+0`, `Ctrl+Alt+Shift+Up/Down`, `Ctrl+Alt+Shift+F2`, and `Ctrl+Alt+Shift+W`; confirm the selected workspace terminal accepts input immediately without an extra click.
