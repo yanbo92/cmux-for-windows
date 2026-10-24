@@ -56,6 +56,8 @@ Resource IDs are opaque typed strings. Selectors can also use `current` or an ex
 
 Remote commands such as `connect`, `ssh`, `forward`, `rpc`, and `enroll` are unavailable in this Windows-only fork.
 
+The Windows binary answers `remote-probe --json` with its fork identity, platform, protocol, and an explicit `remote_link: unsupported` diagnostic. This lets an upstream SSH client report the missing remote-link implementation instead of treating the endpoint as an absent executable. `remote-link --stdio` remains unavailable until the upstream framed remote daemon protocol is ported to the Windows transport.
+
 ## Paths
 
 | Purpose | Default |

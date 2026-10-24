@@ -9,6 +9,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - Added a GitHub Actions iteration artifact containing the Windows GNU `cmux-tui.exe` and `cmux_ffi.dll` binaries for remote testing without a local build toolchain.
+- Added structured `remote-probe --json` diagnostics on Windows so upstream SSH clients can identify the fork and see that `remote-link` is still unavailable.
 
 ## [0.3.8] - 2026-08-13
 
