@@ -75,6 +75,17 @@ cargo rustc --manifest-path .\cmux-tui\Cargo.toml `
 
 The MSVC-host CI runner cross-builds the GNU target and does not require these explicit flags.
 
+### Remote build identity
+
+`cmux-remote/build.rs` records the Git source identity automatically. Source archives can
+set `CMUX_TUI_BUILD_COMMIT` explicitly. The current iteration workflow pins
+`CMUX_TUI_BUILD_COMMIT` and `CMUX_TUI_DISTRIBUTION_VERSION` to the compatibility
+identity expected by the tested Mac client (cmux 0.65.2, bundled TUI revision
+`a9b104f3cb7d3808cf7eb5ae08b4819333b25870`). This is a Windows compatibility
+build, not a claim that the fork has identical source. The artifact name and
+Actions run's head SHA identify the actual Windows source revision. Updating the
+Mac client requires rechecking this compatibility target and the full SSH flow.
+
 ### bindgen cannot find standard headers
 
 `BINDGEN_EXTRA_CLANG_ARGS` is parsed with shell quoting rules. Use forward slashes even in Windows paths:
@@ -162,6 +173,55 @@ The full inherited Rust test suite is not a supported Windows gate. Some retaine
 ### GitHub Actions iteration binaries
 
 The [`Windows` workflow](../.github/workflows/cmux-tui.yml) runs on `windows-latest` and can be started with `workflow_dispatch`. After the Rust build, it uploads a `cmux-windows-iteration-<commit>` artifact containing `cmux-tui.exe` and `cmux_ffi.dll` for seven days. Download that artifact from the workflow run when testing a Windows target without installing the Rust, Zig, or WinUI toolchains locally. The artifact is an iteration build, not the signed public installer.
+
+### Mac-to-Windows SSH iteration
+
+Use this loop for the Windows VDI port; local Rust, Zig, and .NET installation is
+unnecessary:
+
+1. Commit and push the code, then dispatch `.github/workflows/cmux-tui.yml`.
+   Inspect the run for the exact commit, including the SSH stdio mux bridge
+   test, workspace tests, and WinUI build.
+2. Download the `cmux-windows-iteration-<commit>` artifact **on `macbookair`**.
+   The Air's network is preferable for the large artifact. This is an Air-side
+   download followed by a separate Air-side transfer, not local SCP with a jump
+   host. If Air's `gh` authentication is unavailable, use authenticated `gh` on
+   the development Mac to resolve the artifact's temporary download URL, then
+   pass only that URL to Air's `curl`; do not copy the GitHub token.
+3. On Air, extract the archive and compute `shasum -a 256 cmux-tui.exe`.
+   Use Air's `scp -O` to copy the executable to
+   `vdi:C:/Users/User/.local/bin/cmux-tui.exe`. Stop the preceding test's remote
+   process before replacing its executable, since Windows holds running images
+   open. `cmux_ffi.dll` is needed only for native GUI testing.
+4. Verify the VDI executable with `Get-FileHash -Algorithm SHA256`. The digest
+   must match Air's. Invoke `~/.local/bin/cmux-tui remote-probe --json` through
+   SSH to confirm the deployed binary answers.
+5. From the Mac, test the bundled `cmux-tui ssh vdi --headless --json` and then
+   the actual `cmux ssh vdi` GUI command. A connection snapshot proves the
+   handshake only. Acceptance also requires the GUI workspace to connect,
+   open a Windows terminal, and execute a command there. Record run/commit,
+   digest, connection state, and diagnostic errors; do not record screen
+   contents, terminal input, or credentials.
+
+The experimental server starts a local `--headless` mux on demand. Windows mux
+control travels through a `relay --socket` child with asynchronous stdio pipes
+because the local `uds_windows` transport is synchronous. Remote state defaults
+to `%LOCALAPPDATA%/cmux/remote/sessions/<session>`; mux startup diagnostics go to
+`mux.log` there. It uses one SSH carrier for all lanes, matching `cmux ssh`'s
+default. Independent carrier lanes and remote daemon administration are not yet
+implemented by this foreground server. The Mac's shell integration and optional
+remote features require separate Windows compatibility work.
+
+The Mac frontend's fixed `/bin/sh -c 'exec "${SHELL:-/bin/sh}" -l'` default-shell
+bootstrap maps to the Windows shell search order (`pwsh.exe`, `powershell.exe`,
+then `cmd.exe`). Other explicit command argv are preserved.
+
+The executable integration gate is:
+
+```powershell
+cargo test --manifest-path .\cmux-tui\Cargo.toml -p cmux-tui `
+  --test remote_link --target x86_64-pc-windows-gnu --locked
+```
 
 For GUI changes, manually verify:
 

@@ -4410,7 +4410,7 @@ fn effect_command(fields: &Map<String, Value>) -> anyhow::Result<Vec<String>> {
                 argv.first().is_some_and(|program| !program.is_empty()),
                 "argv must contain a non-empty executable"
             );
-            Ok(argv)
+            Ok(crate::platform::resource_terminal_command(argv))
         }
         (None, Some(Value::String(shell))) if !shell.is_empty() => {
             Ok(vec![crate::platform::default_shell(), "-lc".to_string(), shell.clone()])

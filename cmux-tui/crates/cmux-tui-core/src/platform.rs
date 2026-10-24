@@ -229,6 +229,16 @@ pub fn default_shell() -> String {
         .unwrap_or_else(|| "cmd.exe".to_string())
 }
 
+/// The Mac SSH frontend expresses "open the default login shell" as this
+/// fixed Unix bootstrap. Windows launches its native shell for that request.
+/// All other explicit argv, including arbitrary Unix commands, stay exact.
+pub(crate) fn resource_terminal_command(argv: Vec<String>) -> Vec<String> {
+    if cfg!(windows) && argv == ["/bin/sh", "-c", "exec \"${SHELL:-/bin/sh}\" -l"] {
+        return vec![default_shell()];
+    }
+    argv
+}
+
 /// Candidate Chrome/Chromium-family binaries in platform discovery order.
 pub fn chrome_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
@@ -812,6 +822,20 @@ fn restrict_permissions(_path: &Path, _mode: u32) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn ssh_default_shell_bootstrap_uses_native_shell_and_preserves_other_argv() {
+        let bootstrap =
+            ["/bin/sh", "-c", "exec \"${SHELL:-/bin/sh}\" -l"].map(str::to_string).to_vec();
+        assert_eq!(resource_terminal_command(bootstrap), vec![default_shell()]);
+        for argv in [
+            vec!["/bin/sh".into(), "-c".into(), "echo explicit-command".into()],
+            vec!["custom-shell.exe".into(), "".into(), "argument with spaces".into()],
+        ] {
+            assert_eq!(resource_terminal_command(argv.clone()), argv);
+        }
+    }
 
     fn position(candidates: &[GhosttyInstallation], expected: impl AsRef<Path>) -> usize {
         let expected = expected.as_ref();

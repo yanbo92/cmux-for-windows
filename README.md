@@ -35,7 +35,8 @@ The Windows GUI and local multiplexer are usable, but this fork does not provide
 | Workspace topology restoration | Supported with per-terminal local working directories; processes, output, and scrollback are not restored |
 | Claude Code, OpenCode, and Codex sessions | Status, in-app completion/attention notifications, and provider-session resume are supported for sessions launched inside the Windows GUI; no Windows system notifications are sent |
 | Local control socket and resource CLI | Supported |
-| Remote daemon, SSH, forwarding, enrollment, and relay | Not included |
+| Mac client connecting to Windows over SSH | Experimental protocol-5 `remote-link --stdio`; see [SSH testing](docs/DEVELOPMENT.md#mac-to-windows-ssh-iteration) |
+| Windows SSH client, forwarding, enrollment, and network relay | Not supported by the Windows CLI |
 | Cloud machine providers and machine agent | Not included |
 | macOS and iOS applications | Not included |
 

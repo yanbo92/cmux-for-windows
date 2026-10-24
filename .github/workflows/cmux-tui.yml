@@ -65,9 +65,6 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --manifest-path cmux-tui/Cargo.toml --all -- --check
 
-      - name: Generate workspace lockfile
-        run: cargo generate-lockfile --manifest-path cmux-tui/Cargo.toml
-
       - name: Build Windows engine and TUI
         run: cargo build --manifest-path cmux-tui/Cargo.toml -p cmux-tui -p cmux-ffi --target x86_64-pc-windows-gnu --locked
 
@@ -94,6 +91,9 @@ jobs:
 
       - name: Test SSH stdio mux bridge
         run: cargo test --manifest-path cmux-tui/Cargo.toml -p cmux-tui --test remote_link --target x86_64-pc-windows-gnu --locked
+
+      - name: Test SSH default shell compatibility
+        run: cargo test --manifest-path cmux-tui/Cargo.toml -p cmux-tui-core --lib --target x86_64-pc-windows-gnu --locked platform::tests::ssh_default_shell_bootstrap_uses_native_shell_and_preserves_other_argv
 
       - name: Test terminal key encoding
         run: cargo test --manifest-path cmux-tui/Cargo.toml -p ghostty-vt --lib --target x86_64-pc-windows-gnu --locked key::tests::chord_parser_encodes_common_keys

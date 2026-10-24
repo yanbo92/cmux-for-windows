@@ -9,7 +9,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - Added a GitHub Actions iteration artifact containing the Windows GNU `cmux-tui.exe` and `cmux_ffi.dll` binaries for remote testing without a local build toolchain.
-- Added structured `remote-probe --json` diagnostics on Windows so upstream SSH clients can identify the fork and see that `remote-link` is still unavailable.
+- Added structured `remote-probe --json` diagnostics and an experimental Windows `remote-link --stdio` server using upstream protocol 5, Noise authentication, and a bridge to the local headless mux.
+- Added a Windows executable integration test that completes the remote handshake and issues a mux control request; documented the Actions → MacBook Air download → internal SCP → VDI testing loop.
+- Mapped the Mac SSH frontend's fixed Unix default-shell bootstrap to the native Windows shell while preserving all other explicit command arguments.
 
 ## [0.3.8] - 2026-08-13
 
