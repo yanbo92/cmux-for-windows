@@ -192,7 +192,13 @@ unnecessary:
    Use Air's `scp -O` to copy the executable to
    `vdi:C:/Users/User/.local/bin/cmux-tui.exe`. Stop the preceding test's remote
    process before replacing its executable, since Windows holds running images
-   open. `cmux_ffi.dll` is needed only for native GUI testing.
+   open. Stop the Mac-side carrier keeper first (`pgrep -f 'remote ssh vdi'`),
+   or the client immediately reconnects and bootstraps its bundled daemon into
+   that path, re-locking the executable mid-swap. With the keeper stopped, one
+   remote-side PowerShell command can kill the Windows processes and move the
+   new executable into place atomically; overwrite-in-place intermittently
+   fails with access denied, so move a fresh filename instead. `cmux_ffi.dll`
+   is needed only for native GUI testing.
 4. Verify the VDI executable with `Get-FileHash -Algorithm SHA256`. The digest
    must match Air's. Invoke `~/.local/bin/cmux-tui remote-probe --json` through
    SSH to confirm the deployed binary answers.
