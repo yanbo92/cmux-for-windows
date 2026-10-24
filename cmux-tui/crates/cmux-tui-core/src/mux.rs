@@ -17801,7 +17801,9 @@ mod tests {
             state
                 .resource_indexes
                 .content_placements
-                .get(&ContentPublicId::Terminal(TerminalPublicId::parse(terminal_id.clone()).unwrap()))
+                .get(&ContentPublicId::Terminal(
+                    TerminalPublicId::parse(terminal_id.clone()).unwrap(),
+                ))
                 .map(|placements| placements.len())
                 .unwrap_or(0)
         });
@@ -17809,6 +17811,14 @@ mod tests {
             diag_tabs >= 1 && diag_placements >= 1,
             "restart diagnostics: registry tabs={diag_tabs}, placements={diag_placements}"
         );
+        let revived_by_slot = reopened
+            .revive_persisted_terminal(beta_slot)
+            .expect("control-slot revival materializes the persisted terminal");
+        assert_eq!(
+            revived_by_slot.spawn_cwd().as_deref(),
+            Some(beta_cwd.to_string_lossy().as_ref())
+        );
+        drop(revived_by_slot);
         let after = serde_json::from_slice::<serde_json::Value>(
             &reopened.local_resource_response_json(&request(&terminal_id)).unwrap(),
         )
@@ -17822,14 +17832,6 @@ mod tests {
             .expect("revived terminal is live");
         assert_eq!(revived.spawn_cwd().as_deref(), Some(alpha_cwd.to_string_lossy().as_ref()));
         drop(revived);
-        let revived_by_slot = reopened
-            .revive_persisted_terminal(beta_slot)
-            .expect("control-slot revival materializes the persisted terminal");
-        assert_eq!(
-            revived_by_slot.spawn_cwd().as_deref(),
-            Some(beta_cwd.to_string_lossy().as_ref())
-        );
-        drop(revived_by_slot);
         drop(reopened);
         std::fs::remove_dir_all(root).unwrap();
     }
