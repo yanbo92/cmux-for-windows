@@ -51,7 +51,9 @@ fn run_inner(args: &[String]) -> anyhow::Result<()> {
 async fn serve(session: String, state_dir: PathBuf) -> anyhow::Result<()> {
     let auth = AuthDatabase::load_or_create(&state_dir, format!("cmux-vdi-{session}"), true)
         .map_err(|error| anyhow!(error))
-        .with_context(|| format!("could not open remote state directory {}", state_dir.display()))?;
+        .with_context(|| {
+            format!("could not open remote state directory {}", state_dir.display())
+        })?;
     let (daemon, mut clients) = RemoteDaemon::with_policy(
         auth.clone(),
         SessionLimits::default(),
