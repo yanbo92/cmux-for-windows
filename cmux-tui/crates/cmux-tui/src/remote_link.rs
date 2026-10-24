@@ -96,7 +96,9 @@ fn ensure_mux_owner(session: &str, state_dir: &Path, socket: &Path) -> anyhow::R
             // reuse live terminals. Jobs that forbid breakaway reject the
             // escape flag, so fall back to a plain detached spawn.
             let escaped = command
-                .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB)
+                .creation_flags(
+                    DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB,
+                )
                 .spawn();
             match escaped {
                 Ok(child) => Ok(child),
