@@ -60,9 +60,6 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --manifest-path cmux-tui/Cargo.toml --all -- --check
 
-      - name: Generate workspace lockfile
-        run: cargo generate-lockfile --manifest-path cmux-tui/Cargo.toml
-
       - name: Build Windows engine and TUI
         run: cargo build --manifest-path cmux-tui/Cargo.toml -p cmux-tui -p cmux-ffi --target x86_64-pc-windows-gnu --locked
 
