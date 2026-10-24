@@ -9408,6 +9408,7 @@ impl Mux {
         self: &Arc<Self>,
         terminal_id: &TerminalPublicId,
     ) -> Option<Arc<Surface>> {
+        eprintln!("cmux-tui: surface_by_public_id enter {terminal_id}");
         // A restored owner keeps projection surfaces for persisted terminals
         // in the catalog while the live surface map stays empty, so a catalog
         // hit without a live Pty surface means the tab still needs reviving.
