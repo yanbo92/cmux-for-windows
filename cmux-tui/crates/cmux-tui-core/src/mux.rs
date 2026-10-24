@@ -17774,7 +17774,7 @@ mod tests {
             &first.local_resource_response_json(&request(&terminal_id)).unwrap(),
         )
         .unwrap();
-        assert!(before.get("value").is_some(), "live terminal read failed: {before}");
+        assert!(before.get("result").is_some(), "live terminal read failed: {before}");
         let beta_slot = beta_surface.id;
         drop(surface);
         drop(beta_surface);
@@ -17794,7 +17794,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            after.get("value").is_some(),
+            after.get("result").is_some(),
             "restarted owner did not revive the persisted terminal: {after}"
         );
         let revived = reopened
