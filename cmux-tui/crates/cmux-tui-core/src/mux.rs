@@ -9411,13 +9411,22 @@ impl Mux {
         if let Some(surface_id) = self.resource_surface_for_terminal(terminal_id) {
             return self.surface(surface_id).filter(|surface| surface.kind() == SurfaceKind::Pty);
         }
-        self.open_public_terminal_tab(terminal_id.as_str(), None).ok()
+        let slot = self.with_state(|state| {
+            state
+                .resource_indexes
+                .content_placements
+                .get(&ContentPublicId::Terminal(terminal_id.clone()))
+                .and_then(|placements| placements.first().copied())
+        })?;
+        self.revive_persisted_terminal(slot)
     }
 
     /// Materialize a persisted terminal tab after an owner restart when a
-    /// control client addresses its stable surface slot. The slot survives in
-    /// the durable registry, so a reconnecting client's first command revives
-    /// the terminal instead of every command reporting an unknown surface.
+    /// control client addresses one of the owner's terminal surfaces. Slots
+    /// are re-allocated at restart while the durable registry keeps the tab,
+    /// so a client that refreshed its topology revives the terminal through
+    /// its first command instead of every command reporting an unknown
+    /// surface.
     pub fn revive_persisted_terminal(self: &Arc<Self>, slot: SurfaceId) -> Option<Arc<Surface>> {
         let tab_id = {
             let state = self.state.lock().unwrap();
@@ -17760,6 +17769,12 @@ mod tests {
                 other => panic!("unexpected content identity {other:?}"),
             }
         });
+        let beta_terminal_id = first.with_state(|state| {
+            match state.resource_indexes.content_ids.get(&beta_surface.id).unwrap() {
+                ContentPublicId::Terminal(id) => id.clone(),
+                other => panic!("unexpected beta content identity {other:?}"),
+            }
+        });
         let request = |terminal: &str| {
             serde_json::to_string(&serde_json::json!({
                 "protocol":"cmux.protocol/2",
@@ -17775,7 +17790,6 @@ mod tests {
         )
         .unwrap();
         assert!(before.get("result").is_some(), "live terminal read failed: {before}");
-        let beta_slot = beta_surface.id;
         drop(surface);
         drop(beta_surface);
         drop(first);
@@ -17811,6 +17825,16 @@ mod tests {
             diag_tabs >= 1 && diag_placements >= 1,
             "restart diagnostics: registry tabs={diag_tabs}, placements={diag_placements}"
         );
+        // Slots are re-allocated at restart; a reconnecting control client
+        // resolves the terminal's fresh slot from its stable public identity.
+        let beta_slot = reopened.with_state(|state| {
+            state
+                .resource_indexes
+                .content_placements
+                .get(&ContentPublicId::Terminal(beta_terminal_id))
+                .and_then(|placements| placements.first().copied())
+                .expect("restarted owner exposes the persisted beta placement")
+        });
         let revived_by_slot = reopened
             .revive_persisted_terminal(beta_slot)
             .expect("control-slot revival materializes the persisted terminal");
