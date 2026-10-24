@@ -10994,7 +10994,17 @@ mod tests {
         let project = root.join("attach-project");
         std::fs::create_dir_all(&project).unwrap();
         let session = "cmux-attach-revive";
-        let first = Mux::open_persistent(session, SurfaceOptions::default(), &root).unwrap();
+        let first = Mux::open_persistent(
+            session,
+            SurfaceOptions {
+                terminal_host_root: Some(crate::terminal_host_runtime::terminal_host_root(
+                    &root, session,
+                )),
+                ..SurfaceOptions::default()
+            },
+            &root,
+        )
+        .unwrap();
         let workspace = first.create_empty_workspace(Some("Attach".into()), None, None).unwrap();
         let surface = first
             .open_workspace_terminal(
@@ -11012,7 +11022,17 @@ mod tests {
         drop(surface);
         drop(first);
 
-        let reopened = Mux::open_persistent(session, SurfaceOptions::default(), &root).unwrap();
+        let reopened = Mux::open_persistent(
+            session,
+            SurfaceOptions {
+                terminal_host_root: Some(crate::terminal_host_runtime::terminal_host_root(
+                    &root, session,
+                )),
+                ..SurfaceOptions::default()
+            },
+            &root,
+        )
+        .unwrap();
         reopened.with_state(|state| assert!(state.surfaces.is_empty()));
         let selectors = serde_json::from_value::<crate::ResourceSelectors>(serde_json::json!({
             "machine": "current",

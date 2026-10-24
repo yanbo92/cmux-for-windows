@@ -2426,6 +2426,13 @@ impl Mux {
             .live_terminal_host_id(public_id)?
             .with_context(|| format!("restored terminal {public_id} has no host identity"))?;
         let mut options = self.surface_options.lock().unwrap().clone();
+        // The hosted-terminal runtime is Unix-only. Production owners always
+        // configure a terminal host root (the main entry point derives it from
+        // the durable state directory), but on Windows the root is inert: the
+        // spawn path never engages a host and the revival below always
+        // launches a fresh local ConPTY, so gating on the root here would
+        // permanently block every persisted-terminal revival.
+        #[cfg(unix)]
         anyhow::ensure!(
             options.terminal_host_root.is_none(),
             "local terminal restart cannot replace a hosted terminal"
@@ -9408,7 +9415,6 @@ impl Mux {
         self: &Arc<Self>,
         terminal_id: &TerminalPublicId,
     ) -> Option<Arc<Surface>> {
-        eprintln!("cmux-tui: surface_by_public_id enter {terminal_id}");
         // A restored owner keeps projection surfaces for persisted terminals
         // in the catalog while the live surface map stays empty, so a catalog
         // hit without a live Pty surface means the tab still needs reviving.
@@ -15805,6 +15811,20 @@ mod tests {
         Mux::new_for_test("test", SurfaceOptions::default())
     }
 
+    /// Options matching the production owner configuration: the main entry
+    /// point always derives a terminal host root from the durable state
+    /// directory. Restart tests must revive under the same configuration the
+    /// deployed binary uses, not the test default with no host root.
+    #[cfg(windows)]
+    fn production_restart_options(root: &std::path::Path, session: &str) -> SurfaceOptions {
+        SurfaceOptions {
+            terminal_host_root: Some(crate::terminal_host_runtime::terminal_host_root(
+                root, session,
+            )),
+            ..SurfaceOptions::default()
+        }
+    }
+
     fn assert_terminal_view_detached(mux: &Mux, surface: SurfaceId) {
         assert!(!mux.with_state(|state| state.surfaces.contains_key(&surface)));
         assert!(mux.surface(surface).is_some(), "terminal runtime must remain catalog-owned");
@@ -17615,7 +17635,7 @@ mod tests {
         std::fs::create_dir_all(launcher.parent().unwrap()).unwrap();
         std::fs::write(&launcher, "# test launcher").unwrap();
         let options = || {
-            let mut options = SurfaceOptions::default();
+            let mut options = production_restart_options(&root, "cmux-gui-restart");
             options.extra_env.push((
                 "CMUX_AGENT_INTEGRATION_DIR".into(),
                 integration.to_string_lossy().into_owned(),
@@ -17747,7 +17767,7 @@ mod tests {
         let session = "cmux-resource-revive";
         let first = Mux::from_workspace_registry(
             session.into(),
-            SurfaceOptions::default(),
+            production_restart_options(&root, session),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
             false,
@@ -17804,7 +17824,7 @@ mod tests {
 
         let reopened = Mux::from_workspace_registry(
             session.into(),
-            SurfaceOptions::default(),
+            production_restart_options(&root, session),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
             false,
@@ -17876,7 +17896,7 @@ mod tests {
         let session = "cmux-remote-revive";
         let first = Mux::from_workspace_registry(
             session.into(),
-            SurfaceOptions::default(),
+            production_restart_options(&root, session),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
             false,
@@ -17912,7 +17932,7 @@ mod tests {
 
         let reopened = Mux::from_workspace_registry(
             session.into(),
-            SurfaceOptions::default(),
+            production_restart_options(&root, session),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
             false,

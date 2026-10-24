@@ -138,10 +138,6 @@ fn terminal_state_read(
     mux: &Arc<Mux>,
     request: &ParsedResourceRequest,
 ) -> Result<Value, ResourceError> {
-    eprintln!(
-        "cmux-tui: terminal_state_read selectors terminal={:?} session={:?} machine={:?}",
-        request.selectors.terminal, request.selectors.session, request.selectors.machine
-    );
     let (_, surface) = resolve_terminal_surface(mux, &request.selectors)?;
     let (cols, rows, state) = surface
         .try_with_terminal(|terminal| {
