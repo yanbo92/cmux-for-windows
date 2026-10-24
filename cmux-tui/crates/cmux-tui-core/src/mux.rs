@@ -2186,20 +2186,7 @@ impl Mux {
         mux.adopt_terminal_hosts()?;
         {
             let mut state = mux.state.lock().unwrap();
-            let before_placements = state.resource_indexes.content_placements.len();
-            let before_contents = state.resource_indexes.content_ids.len();
-            let before_tabs = state.resource_indexes.tabs.len();
-            eprintln!(
-                "cmux-tui: restore indexes placements={before_placements} contents={before_contents} tabs={before_tabs}"
-            );
             state.rebuild_resource_indexes();
-            let after_placements = state.resource_indexes.content_placements.len();
-            let after_contents = state.resource_indexes.content_ids.len();
-            let after_tabs = state.resource_indexes.tabs.len();
-            let pane_tab_total: usize = state.panes.values().map(|pane| pane.tabs.len()).sum();
-            eprintln!(
-                "cmux-tui: rebuilt indexes placements={after_placements} contents={after_contents} tabs={after_tabs} live_pane_tabs={pane_tab_total}"
-            );
             for content in &contents {
                 if let Some(surface) = state.surfaces.get(&content.slot) {
                     surface.set_name(content.name.clone());
@@ -2207,16 +2194,13 @@ impl Mux {
             }
         }
         let recovery_deadline = Instant::now() + Duration::from_secs(15);
-        let mut reconcile_rounds = 0u32;
         while mux.reconcile_interrupted_resource_creations()? {
-            reconcile_rounds += 1;
             if Instant::now() >= recovery_deadline {
                 mux.shutdown();
                 anyhow::bail!("interrupted resource creation did not settle during startup");
             }
             std::thread::sleep(Duration::from_millis(25));
         }
-        eprintln!("cmux-tui: startup reconcile rounds={reconcile_rounds}");
         Ok(mux)
     }
 
@@ -9424,26 +9408,22 @@ impl Mux {
         self: &Arc<Self>,
         terminal_id: &TerminalPublicId,
     ) -> Option<Arc<Surface>> {
-        if let Some(surface_id) = self.resource_surface_for_terminal(terminal_id) {
-            return self.surface(surface_id).filter(|surface| surface.kind() == SurfaceKind::Pty);
+        // A restored owner keeps projection surfaces for persisted terminals
+        // in the catalog while the live surface map stays empty, so a catalog
+        // hit without a live Pty surface means the tab still needs reviving.
+        if let Some(surface) = self
+            .resource_surface_for_terminal(terminal_id)
+            .and_then(|surface_id| self.surface(surface_id))
+            .filter(|surface| surface.kind() == SurfaceKind::Pty)
+        {
+            return Some(surface);
         }
         let slot = self.with_state(|state| {
-            let slot = state
+            state
                 .resource_indexes
                 .content_placements
                 .get(&ContentPublicId::Terminal(terminal_id.clone()))
-                .and_then(|placements| placements.first().copied());
-            if slot.is_none() {
-                let keys = state
-                    .resource_indexes
-                    .content_placements
-                    .keys()
-                    .map(|key| key.as_str().to_string())
-                    .collect::<Vec<_>>()
-                    .join(",");
-                eprintln!("cmux-tui: revival lookup missed {terminal_id}; placement keys: {keys}");
-            }
-            slot
+                .and_then(|placements| placements.first().copied())
         })?;
         self.revive_persisted_terminal(slot)
     }
@@ -17769,7 +17749,7 @@ mod tests {
             SurfaceOptions::default(),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
-            true,
+            false,
         )
         .unwrap();
         let alpha = first.create_empty_workspace(Some("Alpha".into()), None, None).unwrap();
@@ -17826,7 +17806,7 @@ mod tests {
             SurfaceOptions::default(),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
-            true,
+            false,
         )
         .unwrap();
         reopened.with_state(|state| assert!(state.surfaces.is_empty()));
@@ -17898,7 +17878,7 @@ mod tests {
             SurfaceOptions::default(),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
-            true,
+            false,
         )
         .unwrap();
         let created = public_request(
@@ -17934,7 +17914,7 @@ mod tests {
             SurfaceOptions::default(),
             WorkspaceRegistry::open(&root, session).unwrap(),
             ProviderWorkspaceState::default(),
-            true,
+            false,
         )
         .unwrap();
         reopened.with_state(|state| assert!(state.surfaces.is_empty()));

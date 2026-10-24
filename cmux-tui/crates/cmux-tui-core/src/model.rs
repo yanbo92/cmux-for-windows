@@ -942,7 +942,6 @@ impl State {
     }
 
     pub(crate) fn rebuild_resource_indexes(&mut self) {
-        let old_placements = self.resource_indexes.content_placements.len();
         let mut indexes = PublicSlotIndexes::default();
         let mut live_split_slots = self.split_screens.keys().copied().collect::<HashSet<_>>();
         for workspace in &self.workspaces {
@@ -997,12 +996,6 @@ impl State {
                 indexes.split_ids.insert(split, public_id);
             }
         }
-        eprintln!(
-            "cmux-tui: rebuild indexes {old_placements} -> {} placements, {} panes, {} surfaces",
-            indexes.content_placements.len(),
-            self.panes.len(),
-            self.surfaces.len(),
-        );
         self.resource_indexes = indexes;
     }
 
